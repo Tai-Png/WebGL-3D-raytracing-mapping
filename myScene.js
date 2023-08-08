@@ -108,9 +108,9 @@ function render() {
     gl.clearColor( 1, 0.5, 0.5, 1 );
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
     gl.clear(gl.DEPTH_BUFFER_BIT);
+    drawModel();
     
     drawSkybox();
-    drawModel();
 
 }
 
@@ -130,20 +130,26 @@ async function populateModelVAO(OBJdata){
           gl.bindTexture(gl.TEXTURE_2D, modelTexture);
           const width = 4096;
           const height = 4096;
-          const format = gl.RGB;
+          const format = gl.RGBA;
           const type = gl.UNSIGNED_BYTE;
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, format, type, null);
-          gl.generateMipmap(gl.TEXTURE_2D);
+          image.addEventListener('load', () => {
+            // Now that the image has loaded make copy it to the texture.
+            gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+            gl.texImage2D(gl.TEXTURE_20, 0, gl.RGBA, format, type, image);
+            gl.generateMipmap(gl.TEXTURE_2D);
+
 
           // Resolving the promise to indicate success
           resolve(modelTexture); // you can pass the modelTexture if you'd like to use it later
-      };
-
+      });
+    }
       image.onerror = () => {
           // Rejecting the promise to indicate an error
           reject(new Error("Error loading model modelTexture from: Plastic_4K_Diffuse.jpg"));
       };
   });
+
+
 
   modelTexturePromise.then(() => {
     for (const element of OBJdata.geometries) {
@@ -200,8 +206,6 @@ async function populateModelVAO(OBJdata){
   });
 
 }
-
-
 
 async function populateskyboxVAO(){
     try {
@@ -328,6 +332,7 @@ function drawSkybox() {
 }
 
 function drawModel(){
+  console.log("Trying to draw model");
   gl.useProgram(program);
 
   viewMatrix = inverse(camera_matrix);
