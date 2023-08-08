@@ -54,7 +54,7 @@ var quadVertices = [
     1,  1,
   ];
 
-
+var modelTexture;
 
 window.onload = async function init() {
   
@@ -85,7 +85,7 @@ window.onload = async function init() {
 
 
   // Uniform locations
-  programVColorLoc = gl.getUniformLocation(program, "vColor");
+  uTextureLoc = gl.getUniformLocation(program, "u_texture");
   worldInverseTransposeLocation = gl.getUniformLocation(program, "u_worldInverseTranspose");
   cubeWorldViewProjectionLocation = gl.getUniformLocation(program, "u_worldViewProjection");
 
@@ -93,11 +93,12 @@ window.onload = async function init() {
   skyboxu_viewDirectionProjectionInverseLoc = gl.getUniformLocation(skyboxProgram, "u_viewDirectionProjectionInverse");
 
 
-  await populateskyboxVAO();
-
-  populateModelVAO(OBJdata);
+  populateskyboxVAO().then(() => {
+    populateModelVAO(OBJdata);
+  }).catch((error) => {
+    console.error("Error in populateskyboxVAOs",error);
+  });
   
-  // render();
 }
 
 function render() {
@@ -108,146 +109,188 @@ function render() {
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
     gl.clear(gl.DEPTH_BUFFER_BIT);
     
-    drawModel();
     drawSkybox();
+    drawModel();
 
 }
 
-async function loadTexture() {
-  const response = await fetch('models/amongus.mtl');
-  const text = await response.text();
-  const MTLdata = parseMTL(text);
-  console.log(MTLdata);
 
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+async function populateModelVAO(OBJdata){
+  console.log("Starting model texture creation...");
+  const modelTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, modelTexture);
 
-  const image = new Image();
-  image.onload = () => {
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
-    gl.generateMipmap(gl.TEXTURE_2D);
-  };
-  image.src = 'Plastic_4K_Diffuse.jpg';
+  let modelTexturePromise = new Promise((resolve, reject) => {
+
+      const image = new Image();
+      image.src = 'Plastic_4K_Diffuse.jpg';
+
+      image.onload = () => {
+          console.log(`Model modelTexture loaded from: Plastic_4K_Diffuse.jpg`);
+          gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+          const width = 4096;
+          const height = 4096;
+          const format = gl.RGB;
+          const type = gl.UNSIGNED_BYTE;
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, format, type, null);
+          gl.generateMipmap(gl.TEXTURE_2D);
+
+          // Resolving the promise to indicate success
+          resolve(modelTexture); // you can pass the modelTexture if you'd like to use it later
+      };
+
+      image.onerror = () => {
+          // Rejecting the promise to indicate an error
+          reject(new Error("Error loading model modelTexture from: Plastic_4K_Diffuse.jpg"));
+      };
+  });
+
+  modelTexturePromise.then(() => {
+    for (const element of OBJdata.geometries) {
+    // Create and bind VAO
+    let tempVAO = gl.createVertexArray();
+    gl.bindVertexArray(tempVAO);
+    // Create buffers
+    const positionBuffer = gl.createBuffer();
+    const texcoordBuffer = gl.createBuffer();
+    const normalBuffer = gl.createBuffer();
+
+
+
+    // Populate Position buffer
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(element.data.position), gl.STATIC_DRAW); 
+    gl.enableVertexAttribArray( programa_positionLoc );
+    gl.vertexAttribPointer(programa_positionLoc, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+          // Checking if texture coordinates do not exist
+          let texcoords = element.data.texcoord;
+          // If texture coordinates don't exist or are empty, create default (0,0) coords
+          if (!texcoords || texcoords.length === 0) {
+            console.log("No texture coordinates found");
+            const numVertices = element.data.position.length / 3;
+            texcoords = new Array(numVertices * 2).fill(0); // Create an array of size numVertices*2 and fill it with zeros
+          }
+    
+    // Populate Texture buffer
+    gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texcoords), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray( texCoordLocation );
+    gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    // Populate Normal buffer
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(element.data.normal), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray( normalLocation );
+    gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    // Push the amount of shapes to draw into the drawCounts array
+    drawCounts.push(element.data.position.length/3 );
+    
+    // Push the VAO into the vaoArray
+    vaoArray.push(tempVAO);
+
+    // gl.bindVertexArray(null);
+  }
+}).catch(error => {
+    console.error("There was an error loading one or more images", error);
+  });
+
 }
+
+
 
 async function populateskyboxVAO(){
-  console.log("Starting skybox texture creation...");
-    // Create Skybox texture
-    skyboxTexture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
-  
-    const faceInfos = [
-      {
-        target: gl.TEXTURE_CUBE_MAP_POSITIVE_X,
-        src: 'right.png',
-      },
-      {
-        target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
-        src: 'left.png',
-      },
-      {
-        target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
-        src: 'top.png',
-      },
-      {
-        target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
-        src: 'bottom.png',
-      },
-      {
-        target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
-        src: 'front.png',
-      },
-      {
-        target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
-        src: 'back.png',
-      },
-    ];
-    // faceInfos.forEach((faceInfo) => {
-    //   const {target, src} = faceInfo;
-    //   console.log(`Starting to load image for target: ${target}, src: ${src}`);
-    //   // Upload the canvas to the cubemap face.
-    //   const level = 0;
-    //   const internalFormat = gl.RGBA;
-    //   const width = 512;
-    //   const height = 512;
-    //   const format = gl.RGBA;
-    //   const type = gl.UNSIGNED_BYTE;
-  
-    //   // setup each face so it's immediately renderable
-    //   gl.texImage2D(target, level, internalFormat, width, height, 0, format, type, null);
-  
-    //   // Asynchronously load an image
-    //   const image = new Image();
-    //   image.src = src;
-    //   image.addEventListener('load', function() {
-    //     console.log(`Image loaded for target: ${target}`);
-    //     // Now that the image has loaded upload it to the texture.
-    //     gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
-    //     gl.texImage2D(target, level, internalFormat, format, type, image);
-    //     gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-    //   });
-      
+    try {
+      console.log("Starting skybox texture creation...");
+      // Create Skybox texture
+      skyboxTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
 
-    // });
-
-  // gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-  // console.log("Mipmaps generated for skybox texture");
-  // gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-  let imageLoadPromises = faceInfos.map((faceInfo) => {
-    return new Promise((resolve, reject) => {
-        const { target, src } = faceInfo;
-        console.log(`Starting to load image for target: ${target}, src: ${src}`);
-        
-        const level = 0;
-        const internalFormat = gl.RGBA;
-        const width = 512;
-        const height = 512;
-        const format = gl.RGBA;
-        const type = gl.UNSIGNED_BYTE;
-        
-        // Setup each face so it's immediately renderable
-        gl.texImage2D(target, level, internalFormat, width, height, 0, format, type, null);
-        
-        // Asynchronously load an image
-        const image = new Image();
-        image.src = src;
-        image.onload = () => {
-            console.log(`Image loaded for target: ${target}`);
-            gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
-            gl.texImage2D(target, level, internalFormat, format, type, image);
-            resolve();
-        };
-        image.onerror = reject;
+      // Defining the faces of the cube map
+      const faceInfos = [
+        {
+          target: gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+          src: 'right.png',
+        },
+        {
+          target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
+          src: 'left.png',
+        },
+        {
+          target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+          src: 'top.png',
+        },
+        {
+          target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+          src: 'bottom.png',
+        },
+        {
+          target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
+          src: 'front.png',
+        },
+        {
+          target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
+          src: 'back.png',
+        },
+      ];
+      let imageLoadPromises = faceInfos.map((faceInfo) => {
+        return new Promise((resolve, reject) => {
+            const { target, src } = faceInfo;
+            console.log(`Starting to load image for target: ${target}, src: ${src}`);
+            
+            const level = 0;
+            const internalFormat = gl.RGBA;
+            const width = 512;
+            const height = 512;
+            const format = gl.RGBA;
+            const type = gl.UNSIGNED_BYTE;
+            
+            // Setup each face so it's immediately renderable
+            gl.texImage2D(target, level, internalFormat, width, height, 0, format, type, null);
+            
+            // Asynchronously load an image
+            const image = new Image();
+            image.src = src;
+            image.onload = () => {
+              console.log(`Image loaded for target: ${target}`);
+              gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
+              gl.texImage2D(target, level, internalFormat, format, type, image);
+              resolve();
+            };
+            image.onerror = reject;
+        });
     });
-});
+    // Use await here to wait for all imageLoadPromises to finish
+    await Promise.all(imageLoadPromises);
+    gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    console.log("Mipmaps generated for skybox texture");
 
-  Promise.all(imageLoadPromises).then(() => {
-      gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-      console.log("Mipmaps generated for skybox texture");
-      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    let skyboxVAO = gl.createVertexArray();
+    gl.bindVertexArray(skyboxVAO);
 
-      let skyboxVAO = gl.createVertexArray();
-      gl.bindVertexArray(skyboxVAO);
+    // Create skybox buffer
+    skyboxBuffer = gl.createBuffer();
 
-      // Create skybox buffer
-      skyboxBuffer = gl.createBuffer();
+    // Populate skybox buffer
+    gl.bindBuffer(gl.ARRAY_BUFFER, skyboxBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(quadVertices), gl.STATIC_DRAW);
 
-      // Populate skybox buffer
-      gl.bindBuffer(gl.ARRAY_BUFFER, skyboxBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, flatten(quadVertices), gl.STATIC_DRAW);
+    // Enable vertex attribute array for position
+    gl.enableVertexAttribArray(skyboxa_positionLoc);
+    gl.vertexAttribPointer(skyboxa_positionLoc, 2, gl.FLOAT, false, 0, 0);
 
-      // Enable vertex attribute array for position
-      gl.enableVertexAttribArray(skyboxa_positionLoc);
-      gl.vertexAttribPointer(skyboxa_positionLoc, 2, gl.FLOAT, false, 0, 0);
+    skyboxVAOarray.push(skyboxVAO);
+    gl.bindVertexArray(null);
 
-      skyboxVAOarray.push(skyboxVAO);
-      render();
-
-  }).catch(error => {
-      console.error("There was an error loading one or more images", error);
-  });
-    
+    } catch(error) {
+      console.error("There was an error in populateskyboxVAOs", error);
+      throw(error);
+    }
 }
 
 function drawSkybox() {
@@ -285,34 +328,40 @@ function drawSkybox() {
 }
 
 function drawModel(){
-    gl.useProgram(program);
-    var fov = 40;
+  gl.useProgram(program);
 
-    viewMatrix = inverse(camera_matrix);
+  viewMatrix = inverse(camera_matrix);
 
 
-    projectionMatrix = perspective(fov, canvas.width / canvas.height, 0.01, 1000.0);
+  projectionMatrix = perspective(fov, canvas.width / canvas.height, 0.01, 1000.0);
 
-    for(let i = 0; i < vaoArray.length; i++) {
-      gl.enableVertexAttribArray( programa_positionLoc );
-      gl.bindVertexArray(vaoArray[i]); // Bind VAO for current shape wanting to be drawn
-      modelmatrix = mat4(
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
+  for(let i = 0; i < vaoArray.length; i++) {
+    console.log(vaoArray.length);
+    gl.bindVertexArray(vaoArray[i]); // Bind VAO for current shape wanting to be drawn
+    gl.enableVertexAttribArray( programa_positionLoc );
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+    gl.uniform1i(uTextureLoc, 0);
+    modelmatrix = mat4(
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1
       );
-      modelmatrix = scalem(0.01, 0.01, 0.01);
-      let cubeWorldViewProjection = mat4();
-      cubeWorldViewProjection = mult(mult(projectionMatrix, viewMatrix), modelmatrix);
-      gl.uniformMatrix4fv(cubeWorldViewProjectionLocation, false, flatten(cubeWorldViewProjection));
+    modelmatrix = scalem(0.01, 0.01, 0.01);
+    let cubeWorldViewProjection = mat4();
+    cubeWorldViewProjection = mult(mult(projectionMatrix, viewMatrix), modelmatrix);
+    gl.uniformMatrix4fv(cubeWorldViewProjectionLocation, false, flatten(cubeWorldViewProjection));
 
-      var worldInverseMatrix = inverse(modelmatrix);
-      var worldInverseTransposeMatrix = transpose(worldInverseMatrix);
-      gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
-      gl.uniform4fv(programVColorLoc, vec4(0, 0, 1, 1));
-      gl.drawArrays(gl.TRIANGLES, 0, drawCounts[i]);
-    }
+    var worldInverseMatrix = inverse(modelmatrix);
+    var worldInverseTransposeMatrix = transpose(worldInverseMatrix);
+    gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
+
+    gl.drawArrays(gl.TRIANGLES, 0, drawCounts[i]);
+    gl.disableVertexAttribArray( programa_positionLoc );
+    gl.bindVertexArray(null);
+  }
+
 }
 
 function rotateCamera() {
@@ -343,73 +392,6 @@ function translateCamera(translation) {
   camera_matrix = mult(camera_matrix, translationMatrix);
 }
 
-async function populateModelVAO(OBJdata){
-  for (const element of OBJdata.geometries) {
-    // Create and bind VAO
-    let tempVAO = gl.createVertexArray();
-    gl.bindVertexArray(tempVAO);
-    // Create buffers
-    const positionBuffer = gl.createBuffer();
-    const texcoordBuffer = gl.createBuffer();
-    const normalBuffer = gl.createBuffer();
-
-
-
-    // Populate Position buffer
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(element.data.position), gl.STATIC_DRAW); 
-    gl.enableVertexAttribArray( programa_positionLoc );
-    gl.vertexAttribPointer(programa_positionLoc, 3, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-          // Checking if texture coordinates do not exist
-          let texcoords = element.data.texcoord;
-          // If texture coordinates don't exist or are empty, create default (0,0) coords
-          if (!texcoords || texcoords.length === 0) {
-            const numVertices = element.data.position.length / 3;
-            texcoords = new Array(numVertices * 2).fill(0); // Create an array of size numVertices*2 and fill it with zeros
-          }
-    
-    // Populate Texture buffer
-    gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texcoords), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray( texCoordLocation );
-    gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-    // Populate Normal buffer
-    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(element.data.normal), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray( normalLocation );
-    gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-    // Push the amount of shapes to draw into the drawCounts array
-    drawCounts.push(element.data.position.length/3 );
-    
-    // Push the VAO into the vaoArray
-    vaoArray.push(tempVAO);
-
-    gl.bindVertexArray(null);
-
-}
-}
-
-async function loadModels(modelNames, models){
-  modelNames.forEach((e) =>{
-          let objData = fetch('./models/'+e+'.obj').then((o)=>{
-              return o.text().then((t) => {
-                  return parseOBJ(t);
-              });
-           });
-           let mtlData = fetch('./models/'+e+'.mtl').then((o)=>{
-              return o.text().then((t) => {
-                  return parseMTL(t);
-              });
-           });
-           models.push(Promise.all([objData,mtlData]));
-  });
-}
 
 function eventListeners(){
   document.addEventListener("keydown", function(event) {
