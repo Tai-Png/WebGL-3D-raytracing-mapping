@@ -108,49 +108,40 @@ function render() {
     gl.clearColor( 1, 0.5, 0.5, 1 );
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
     gl.clear(gl.DEPTH_BUFFER_BIT);
-    drawModel();
     
     drawSkybox();
+    drawModel();
 
 }
 
 
 async function populateModelVAO(OBJdata){
   console.log("Starting model texture creation...");
-  const modelTexture = gl.createTexture();
+  modelTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+  const width = 4096;
+  const height = 4096;
+  const format = gl.RGB;
+  const type = gl.UNSIGNED_BYTE;
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, format, type, null);
 
   let modelTexturePromise = new Promise((resolve, reject) => {
-
-      const image = new Image();
+      let image = new Image();
       image.src = 'Plastic_4K_Diffuse.jpg';
-
       image.onload = () => {
-          console.log(`Model modelTexture loaded from: Plastic_4K_Diffuse.jpg`);
           gl.bindTexture(gl.TEXTURE_2D, modelTexture);
-          const width = 4096;
-          const height = 4096;
-          const format = gl.RGBA;
-          const type = gl.UNSIGNED_BYTE;
-          console.log("I think starting from line 136 there are problems")
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, format, type, image);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, format, type, image);
           gl.generateMipmap(gl.TEXTURE_2D);
-
-          console.log("Resolving modeltexture promise");
-          // Resolving the promise to indicate success
-          resolve(); // you can pass the modelTexture if you'd like to use it later
-
+          resolve();
     }
       image.onerror = () => {
-          // Rejecting the promise to indicate an error
           reject(new Error("Error loading model modelTexture from: Plastic_4K_Diffuse.jpg"));
       };
   });
 
-
-
   modelTexturePromise.then(() => {
     for (const element of OBJdata.geometries) {
+      console.log("Trying to populate the modelVAOarray")
     // Create and bind VAO
     let tempVAO = gl.createVertexArray();
     gl.bindVertexArray(tempVAO);
@@ -158,8 +149,6 @@ async function populateModelVAO(OBJdata){
     const positionBuffer = gl.createBuffer();
     const texcoordBuffer = gl.createBuffer();
     const normalBuffer = gl.createBuffer();
-
-
 
     // Populate Position buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -177,7 +166,14 @@ async function populateModelVAO(OBJdata){
             texcoords = new Array(numVertices * 2).fill(0); // Create an array of size numVertices*2 and fill it with zeros
           }
     
+    // Activate texture unit 0 and bind the modelTexture
+    const textureUnit = 0;
+    gl.activeTexture(gl.TEXTURE0 + textureUnit);
+    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+    
     // Populate Texture buffer
+    console.log("Trying to populate texture buffer");
+    console.log(texcoords);
     gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texcoords), gl.STATIC_DRAW);
     gl.enableVertexAttribArray( texCoordLocation );
@@ -342,10 +338,10 @@ function drawModel(){
   for(let i = 0; i < vaoArray.length; i++) {
     console.log("inside the drawModel for loop");
     console.log(vaoArray.length);
-    gl.bindVertexArray(vaoArray[i]); // Bind VAO for current shape wanting to be drawn
     gl.enableVertexAttribArray( programa_positionLoc );
-    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+    gl.bindVertexArray(vaoArray[i]); // Bind VAO for current shape wanting to be drawn
     gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     gl.uniform1i(uTextureLoc, 0);
     modelmatrix = mat4(
       1, 0, 0, 0,
