@@ -132,16 +132,14 @@ async function populateModelVAO(OBJdata){
           const height = 4096;
           const format = gl.RGBA;
           const type = gl.UNSIGNED_BYTE;
-          image.addEventListener('load', () => {
-            // Now that the image has loaded make copy it to the texture.
-            gl.bindTexture(gl.TEXTURE_2D, modelTexture);
-            gl.texImage2D(gl.TEXTURE_20, 0, gl.RGBA, format, type, image);
-            gl.generateMipmap(gl.TEXTURE_2D);
+          console.log("I think starting from line 136 there are problems")
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, format, type, image);
+          gl.generateMipmap(gl.TEXTURE_2D);
 
-
+          console.log("Resolving modeltexture promise");
           // Resolving the promise to indicate success
-          resolve(modelTexture); // you can pass the modelTexture if you'd like to use it later
-      });
+          resolve(); // you can pass the modelTexture if you'd like to use it later
+
     }
       image.onerror = () => {
           // Rejecting the promise to indicate an error
@@ -198,8 +196,9 @@ async function populateModelVAO(OBJdata){
     
     // Push the VAO into the vaoArray
     vaoArray.push(tempVAO);
+    console.log("Just pushed the tempVAO in modelVAOarray");
 
-    // gl.bindVertexArray(null);
+    gl.bindVertexArray(null);
   }
 }).catch(error => {
     console.error("There was an error loading one or more images", error);
@@ -339,13 +338,14 @@ function drawModel(){
 
 
   projectionMatrix = perspective(fov, canvas.width / canvas.height, 0.01, 1000.0);
-
+  console.log(vaoArray.length)
   for(let i = 0; i < vaoArray.length; i++) {
+    console.log("inside the drawModel for loop");
     console.log(vaoArray.length);
     gl.bindVertexArray(vaoArray[i]); // Bind VAO for current shape wanting to be drawn
     gl.enableVertexAttribArray( programa_positionLoc );
-    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+    gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(uTextureLoc, 0);
     modelmatrix = mat4(
       1, 0, 0, 0,
@@ -361,6 +361,8 @@ function drawModel(){
     var worldInverseMatrix = inverse(modelmatrix);
     var worldInverseTransposeMatrix = transpose(worldInverseMatrix);
     gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
+
+  gl.depthFunc(gl.LEQUAL);
 
     gl.drawArrays(gl.TRIANGLES, 0, drawCounts[i]);
     gl.disableVertexAttribArray( programa_positionLoc );
