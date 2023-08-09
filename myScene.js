@@ -67,6 +67,7 @@ window.onload = async function init() {
   const response = await fetch('models/amongus.obj'); 
   const text = await response.text();
   const OBJdata = parseOBJ(text);
+  console.log("OBJdata is: ");
   console.log(OBJdata);
 
   eventListeners();
@@ -94,29 +95,27 @@ window.onload = async function init() {
 
 
   populateskyboxVAO().then(() => {
-    populateModelVAO(OBJdata);
-  }).catch((error) => {
-    console.error("Error in populateskyboxVAOs",error);
+    populateModelVAO(OBJdata).then(() => {
+    });
   });
-  
+
 }
 
-function render() {
+async function render() {
+  console.log("Trying to render");
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);    
     gl.cullFace(gl.BACK);
     gl.clearColor( 1, 0.5, 0.5, 1 );
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 
-    gl.clear(gl.DEPTH_BUFFER_BIT);
-    
-    drawSkybox();
-    drawModel();
 
+    drawModel();
+    drawSkybox();
 }
 
 
 async function populateModelVAO(OBJdata){
-  console.log("Starting model texture creation...");
+
   modelTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, modelTexture);
   const width = 4096;
@@ -141,7 +140,7 @@ async function populateModelVAO(OBJdata){
 
   modelTexturePromise.then(() => {
     for (const element of OBJdata.geometries) {
-      console.log("Trying to populate the modelVAOarray")
+
     // Create and bind VAO
     let tempVAO = gl.createVertexArray();
     gl.bindVertexArray(tempVAO);
@@ -172,8 +171,6 @@ async function populateModelVAO(OBJdata){
     gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     
     // Populate Texture buffer
-    console.log("Trying to populate texture buffer");
-    console.log(texcoords);
     gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texcoords), gl.STATIC_DRAW);
     gl.enableVertexAttribArray( texCoordLocation );
@@ -192,19 +189,19 @@ async function populateModelVAO(OBJdata){
     
     // Push the VAO into the vaoArray
     vaoArray.push(tempVAO);
-    console.log("Just pushed the tempVAO in modelVAOarray");
 
     gl.bindVertexArray(null);
+    console.log("Model VAOs have been populated");
+
   }
 }).catch(error => {
     console.error("There was an error loading one or more images", error);
   });
-
 }
 
 async function populateskyboxVAO(){
     try {
-      console.log("Starting skybox texture creation...");
+
       // Create Skybox texture
       skyboxTexture = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
@@ -239,7 +236,7 @@ async function populateskyboxVAO(){
       let imageLoadPromises = faceInfos.map((faceInfo) => {
         return new Promise((resolve, reject) => {
             const { target, src } = faceInfo;
-            console.log(`Starting to load image for target: ${target}, src: ${src}`);
+
             
             const level = 0;
             const internalFormat = gl.RGBA;
@@ -255,7 +252,7 @@ async function populateskyboxVAO(){
             const image = new Image();
             image.src = src;
             image.onload = () => {
-              console.log(`Image loaded for target: ${target}`);
+
               gl.bindTexture(gl.TEXTURE_CUBE_MAP, skyboxTexture);
               gl.texImage2D(target, level, internalFormat, format, type, image);
               resolve();
@@ -267,7 +264,7 @@ async function populateskyboxVAO(){
     await Promise.all(imageLoadPromises);
     gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    console.log("Mipmaps generated for skybox texture");
+
 
     let skyboxVAO = gl.createVertexArray();
     gl.bindVertexArray(skyboxVAO);
@@ -285,7 +282,7 @@ async function populateskyboxVAO(){
 
     skyboxVAOarray.push(skyboxVAO);
     gl.bindVertexArray(null);
-
+    console.log("Skybox VAOs have been populated");
     } catch(error) {
       console.error("There was an error in populateskyboxVAOs", error);
       throw(error);
@@ -334,14 +331,9 @@ function drawModel(){
 
 
   projectionMatrix = perspective(fov, canvas.width / canvas.height, 0.01, 1000.0);
-  console.log(vaoArray.length)
   for(let i = 0; i < vaoArray.length; i++) {
-    console.log("inside the drawModel for loop");
-    console.log(vaoArray.length);
+    gl.bindVertexArray(vaoArray[i]); 
     gl.enableVertexAttribArray( programa_positionLoc );
-    gl.bindVertexArray(vaoArray[i]); // Bind VAO for current shape wanting to be drawn
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     gl.uniform1i(uTextureLoc, 0);
     modelmatrix = mat4(
       1, 0, 0, 0,
@@ -357,8 +349,6 @@ function drawModel(){
     var worldInverseMatrix = inverse(modelmatrix);
     var worldInverseTransposeMatrix = transpose(worldInverseMatrix);
     gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
-
-  gl.depthFunc(gl.LEQUAL);
 
     gl.drawArrays(gl.TRIANGLES, 0, drawCounts[i]);
     gl.disableVertexAttribArray( programa_positionLoc );
