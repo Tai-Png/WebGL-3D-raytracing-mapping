@@ -4,7 +4,6 @@ var gl;
 var program;
 var programa_positionLoc;
 var programVBuffer;
-var programVColorLoc;
 var texcoordBuf;
 var texCoordLocation;
 var texcoordBuf;
@@ -112,7 +111,6 @@ async function render() {
     drawModel();
     drawSkybox();
 }
-
 
 async function populateModelVAO(OBJdata){
 
@@ -328,12 +326,10 @@ function drawModel(){
   gl.useProgram(program);
 
   viewMatrix = inverse(camera_matrix);
-
-
   projectionMatrix = perspective(fov, canvas.width / canvas.height, 0.01, 1000.0);
+
   for(let i = 0; i < vaoArray.length; i++) {
     gl.bindVertexArray(vaoArray[i]); 
-    gl.enableVertexAttribArray( programa_positionLoc );
     gl.uniform1i(uTextureLoc, 0);
     modelmatrix = mat4(
       1, 0, 0, 0,
@@ -345,16 +341,12 @@ function drawModel(){
     let cubeWorldViewProjection = mat4();
     cubeWorldViewProjection = mult(mult(projectionMatrix, viewMatrix), modelmatrix);
     gl.uniformMatrix4fv(cubeWorldViewProjectionLocation, false, flatten(cubeWorldViewProjection));
-
     var worldInverseMatrix = inverse(modelmatrix);
     var worldInverseTransposeMatrix = transpose(worldInverseMatrix);
     gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
 
     gl.drawArrays(gl.TRIANGLES, 0, drawCounts[i]);
-    gl.disableVertexAttribArray( programa_positionLoc );
-    gl.bindVertexArray(null);
   }
-
 }
 
 function rotateCamera() {
@@ -385,33 +377,32 @@ function translateCamera(translation) {
   camera_matrix = mult(camera_matrix, translationMatrix);
 }
 
-
 function eventListeners(){
   document.addEventListener("keydown", function(event) {
     if (event.key === "d") {
-        translateCamera([1, 0, 0]);
+        translateCamera([1*0.5, 0, 0]);
         render();
     } else if (event.key === "a") {
-        translateCamera([-1, 0, 0]);
+        translateCamera([-1*0.5, 0, 0]);
         render();
     } 
 });
 
   document.addEventListener("keydown", function(event) {
     if (event.key === "ArrowDown") {
-        translateCamera([0, -1, 0]);
+        translateCamera([0, -1*0.5, 0]);
         render();
     } else if (event.key === "ArrowUp") {
-        translateCamera([0, 1, 0]);
+        translateCamera([0, 1*0.5, 0]);
         render();
     } 
 });
   document.addEventListener("keydown", function(event) {
   if (event.key === "w") {
-      translateCamera([0, 0, -1]);
+      translateCamera([0, 0, -1*0.5]);
       render();
   } else if (event.key === "s") {
-      translateCamera([0, 0, 1]);
+      translateCamera([0, 0, 1*0.5]);
       render();
   } 
 });
