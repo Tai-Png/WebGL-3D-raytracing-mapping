@@ -60,11 +60,14 @@ void main () {
     if (light > 0.0) { 
         specular = pow(dot(normal, halfVector), u_shininess); 
     }
+
+    light += 0.4; // Adding ambient light to diffuse light
     
     outColor = texture(u_texture,v_texCoord); // Texture mapping 
+
     outColor.rgb *= light; // Apply diffuse light to texture color 
+
     outColor.rgb += specular; // Adding specular light to texture color
-    outColor.rgb = (outColor.rgb + vec3(0.5, 0.5, 0.5)) * outColor.rgb; // Adding ambient light to texture color
 }
 </script>
 
@@ -110,7 +113,7 @@ void main() {
 
 
 <body>
-<canvas id="gl-canvas" width="512" height="512"> 
+<canvas id="gl-canvas" width="1024" height="1024"> 
 Oops ... your browser doesn't support the HTML5 canvas element
 </canvas>
 </body>
