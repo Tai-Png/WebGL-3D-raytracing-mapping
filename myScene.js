@@ -2,20 +2,15 @@
 var canvas;
 var gl;
 var program;
-var programa_positionLoc;
 var programVBuffer;
 var texcoordBuf;
-var texCoordLocation;
 var texcoordBuf;
 var normalBuffer;
-var normalLocation;
 var element;
 const positionBufferArray = [];
 const texcoordBufferArray = [];
 const normalBufferArray = [];
-var worldLocation;
-var worldInverseTransposeLocation;
-var cubeWorldViewProjectionLocation;
+
 var vaoArray = []; // Array to store VAOs
 var Xtheta = 0;
 var Ytheta = 0;
@@ -55,6 +50,17 @@ var quadVertices = [
 
 var modelTexture;
 
+var programa_positionLoc;
+var texCoordLocation;
+var normalLocation;
+var u_lightWorldPositionLoc;
+var u_viewWorldPositionLoc;
+var v_surfaceToViewLoc;
+var worldLocation;
+var worldInverseTransposeLocation;
+var WorldViewProjectionLoc;
+var uTextureLoc;
+var u_shininessLoc; 
 window.onload = async function init() {
   
   canvas = document.getElementById( "gl-canvas" ); 
@@ -80,14 +86,18 @@ window.onload = async function init() {
   programa_positionLoc = gl.getAttribLocation( program, "a_position" );
   texCoordLocation = gl.getAttribLocation( program, "texCoord" );
   normalLocation = gl.getAttribLocation( program, "a_normal" );
-
+  
   skyboxa_positionLoc = gl.getAttribLocation( skyboxProgram, "a_position" );
 
 
   // Uniform locations
   uTextureLoc = gl.getUniformLocation(program, "u_texture");
+  u_lightWorldPositionLoc = gl.getUniformLocation(program, "u_lightWorldPosition");
+  u_viewWorldPositionLoc = gl.getUniformLocation(program, "u_viewWorldPosition");
+  WorldViewProjectionLoc = gl.getUniformLocation(program, "u_worldViewProjection");
+  worldLocation = gl.getUniformLocation(program, "u_world");
   worldInverseTransposeLocation = gl.getUniformLocation(program, "u_worldInverseTranspose");
-  cubeWorldViewProjectionLocation = gl.getUniformLocation(program, "u_worldViewProjection");
+  u_shininessLoc = gl.getUniformLocation(program, "u_shininess");
 
   skyboxu_skyboxLoc = gl.getUniformLocation(skyboxProgram, "u_skybox");
   skyboxu_viewDirectionProjectionInverseLoc = gl.getUniformLocation(skyboxProgram, "u_viewDirectionProjectionInverse");
@@ -338,9 +348,9 @@ function drawModel(){
       0, 0, 0, 1
       );
     modelmatrix = scalem(0.01, 0.01, 0.01);
-    let cubeWorldViewProjection = mat4();
-    cubeWorldViewProjection = mult(mult(projectionMatrix, viewMatrix), modelmatrix);
-    gl.uniformMatrix4fv(cubeWorldViewProjectionLocation, false, flatten(cubeWorldViewProjection));
+    let worldViewProjection = mat4();
+    worldViewProjection = mult(mult(projectionMatrix, viewMatrix), modelmatrix);
+    gl.uniformMatrix4fv(WorldViewProjectionLoc, false, flatten(worldViewProjection));
     var worldInverseMatrix = inverse(modelmatrix);
     var worldInverseTransposeMatrix = transpose(worldInverseMatrix);
     gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
