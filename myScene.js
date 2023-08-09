@@ -70,7 +70,7 @@ window.onload = async function init() {
   gl.viewport( 0, 0, canvas.width, canvas.height );
 
 
-  const response = await fetch('models/amongus.obj'); 
+  const response = await fetch('models/amonguss.obj'); 
   const text = await response.text();
   const OBJdata = parseOBJ(text);
   console.log("OBJdata is: ");
@@ -108,13 +108,15 @@ window.onload = async function init() {
     populateModelVAO(OBJdata).then(() => {
     });
   });
-
 }
 
 function drawModel(){
   
   for(let i = 0; i < vaoArray.length; i++) {
     console.log("Trying to draw model");
+    console.log("Trying to draw modeladwfasdfasdf");
+
+    console.log(vaoArray.length);
     gl.useProgram(program);
     gl.bindVertexArray(vaoArray[i]);
     gl.uniform3fv(u_lightWorldPositionLoc, vec3(-1, 2, 0)); // sending light position to shader
@@ -125,7 +127,7 @@ function drawModel(){
     viewMatrix = inverse(camera_matrix);
     projectionMatrix = perspective(fov, canvas.width / canvas.height, 0.01, 1000.0);
     modelmatrix = mat4();
-    modelmatrix = scalem(0.01, 0.01, 0.01);
+    // modelmatrix = scalem(0.01, 0.01, 0.01);
     gl.uniformMatrix4fv(worldLocation, false, flatten(modelmatrix));
     let worldViewProjection = mat4();
     worldViewProjection = mult(mult(projectionMatrix, viewMatrix), modelmatrix);
@@ -151,7 +153,11 @@ async function render() {
 }
 
 async function populateModelVAO(OBJdata){
+
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  console.log("Unbinding texture")
   modelTexture = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, modelTexture);
   const width = 4096;
   const height = 4096;
@@ -162,8 +168,8 @@ async function populateModelVAO(OBJdata){
   let modelTexturePromise = new Promise((resolve, reject) => {
       let image = new Image();
       image.src = 'Plastic_4K_Diffuse.jpg';
+      console.log("Trying to load modelTexture");
       image.onload = () => {
-          gl.bindTexture(gl.TEXTURE_2D, modelTexture);
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, format, type, image);
           gl.generateMipmap(gl.TEXTURE_2D);
           resolve();
@@ -200,10 +206,6 @@ async function populateModelVAO(OBJdata){
             texcoords = new Array(numVertices * 2).fill(0); // Create an array of size numVertices*2 and fill it with zeros
           }
     
-    // Activate texture unit 0 and bind the modelTexture
-    const textureUnit = 0;
-    gl.activeTexture(gl.TEXTURE0 + textureUnit);
-    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     
     // Populate Texture buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
@@ -227,6 +229,7 @@ async function populateModelVAO(OBJdata){
 
     gl.bindVertexArray(null);
     console.log("Model VAOs have been populated");
+    render();
 
   }
 }).catch(error => {
