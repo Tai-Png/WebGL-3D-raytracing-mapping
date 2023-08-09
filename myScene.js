@@ -15,9 +15,9 @@ var vaoArray = []; // Array to store VAOs
 var Xtheta = 0;
 var Ytheta = 0;
 // CAMERA INITIALIZATION
-var camPosX = 10;
-var camPosY = 10;
-var camPosZ = 10;
+var camPosX = -2;
+var camPosY = 2;
+var camPosZ = 0;
 var camera_matrix = mat4();
 var fov = 40;
 
@@ -61,6 +61,7 @@ var worldInverseTransposeLocation;
 var WorldViewProjectionLoc;
 var uTextureLoc;
 var u_shininessLoc; 
+
 window.onload = async function init() {
   
   canvas = document.getElementById( "gl-canvas" ); 
@@ -110,6 +111,33 @@ window.onload = async function init() {
 
 }
 
+function drawModel(){
+  
+  for(let i = 0; i < vaoArray.length; i++) {
+    console.log("Trying to draw model");
+    gl.useProgram(program);
+    gl.bindVertexArray(vaoArray[i]);
+    gl.uniform3fv(u_lightWorldPositionLoc, vec3(-2, 5, 0)); // sending light position (-2, 2, 0) to shader
+    gl.uniform3fv(u_viewWorldPositionLoc, vec3(0, 0, 2)); // sending camera position to shader
+    gl.uniform1f(u_shininessLoc, 150.0); // sending shininess to shader
+    gl.uniform1i(uTextureLoc, 0);
+
+    viewMatrix = inverse(camera_matrix);
+    projectionMatrix = perspective(fov, canvas.width / canvas.height, 0.01, 1000.0);
+    modelmatrix = mat4();
+    modelmatrix = scalem(0.01, 0.01, 0.01);
+    gl.uniformMatrix4fv(worldLocation, false, flatten(modelmatrix));
+    let worldViewProjection = mat4();
+    worldViewProjection = mult(mult(projectionMatrix, viewMatrix), modelmatrix);
+    gl.uniformMatrix4fv(WorldViewProjectionLoc, false, flatten(worldViewProjection));
+    var worldInverseMatrix = inverse(modelmatrix);
+    var worldInverseTransposeMatrix = transpose(worldInverseMatrix);
+    gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
+
+    gl.drawArrays(gl.TRIANGLES, 0, drawCounts[i]);
+  }
+}
+
 async function render() {
   console.log("Trying to render");
     gl.enable(gl.DEPTH_TEST);
@@ -123,7 +151,6 @@ async function render() {
 }
 
 async function populateModelVAO(OBJdata){
-
   modelTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, modelTexture);
   const width = 4096;
@@ -331,33 +358,7 @@ function drawSkybox() {
   gl.bindVertexArray(null);
 }
 
-function drawModel(){
-  console.log("Trying to draw model");
-  gl.useProgram(program);
 
-  viewMatrix = inverse(camera_matrix);
-  projectionMatrix = perspective(fov, canvas.width / canvas.height, 0.01, 1000.0);
-
-  for(let i = 0; i < vaoArray.length; i++) {
-    gl.bindVertexArray(vaoArray[i]); 
-    gl.uniform1i(uTextureLoc, 0);
-    modelmatrix = mat4(
-      1, 0, 0, 0,
-      0, 1, 0, 0,
-      0, 0, 1, 0,
-      0, 0, 0, 1
-      );
-    modelmatrix = scalem(0.01, 0.01, 0.01);
-    let worldViewProjection = mat4();
-    worldViewProjection = mult(mult(projectionMatrix, viewMatrix), modelmatrix);
-    gl.uniformMatrix4fv(WorldViewProjectionLoc, false, flatten(worldViewProjection));
-    var worldInverseMatrix = inverse(modelmatrix);
-    var worldInverseTransposeMatrix = transpose(worldInverseMatrix);
-    gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
-
-    gl.drawArrays(gl.TRIANGLES, 0, drawCounts[i]);
-  }
-}
 
 function rotateCamera() {
   const x = camera_matrix[0][3]
