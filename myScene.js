@@ -117,8 +117,8 @@ function drawModel(){
     console.log("Trying to draw model");
     gl.useProgram(program);
     gl.bindVertexArray(vaoArray[i]);
-    gl.uniform3fv(u_lightWorldPositionLoc, vec3(-2, 5, 0)); // sending light position (-2, 2, 0) to shader
-    gl.uniform3fv(u_viewWorldPositionLoc, vec3(0, 0, 2)); // sending camera position to shader
+    gl.uniform3fv(u_lightWorldPositionLoc, vec3(-1, 2, 0)); // sending light position to shader
+    gl.uniform3fv(u_viewWorldPositionLoc, vec3(0, 0, 1)); // sending camera position to shader
     gl.uniform1f(u_shininessLoc, 150.0); // sending shininess to shader
     gl.uniform1i(uTextureLoc, 0);
 

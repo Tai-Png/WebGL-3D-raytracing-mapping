@@ -64,6 +64,7 @@ void main () {
     outColor = texture(u_texture,v_texCoord); // Texture mapping 
     outColor.rgb *= light; // Apply diffuse light to texture color 
     outColor.rgb += specular; // Adding specular light to texture color
+    outColor.rgb += vec3(0.01, 0.01, 0.01); // Adding ambient light to texture color
 }
 </script>
 
